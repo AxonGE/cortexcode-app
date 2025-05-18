@@ -1,0 +1,39 @@
+{
+  "family": "cortexcode-task",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "cortexcode",
+      "image": "${{ secrets.ECR_REPO_URL }}/cortexcode-app:latest"
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "hostPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SUPABASE_URL",
+          "value": "<your_supabase_url>"
+        },
+        {
+          "name": "SUPABASE_KEY",
+          "value": "<your_supabase_key>"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "value": "<your_openai_key>"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "<your-ecs-task-execution-role>",
+  "taskRoleArn": "<your-ecs-task-role>"
+}
