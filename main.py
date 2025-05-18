@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-import openai
+from openai import OpenAI
 import requests
 import os
 from datetime import datetime
@@ -9,11 +9,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Environment variables
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai.api_key = OPENAI_API_KEY
 
+# Initialize OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# FastAPI app
 app = FastAPI()
 
 class CaseInput(BaseModel):
@@ -23,22 +27,23 @@ class CaseInput(BaseModel):
 async def create_case(case_input: CaseInput):
     gpt_prompt = f"""
     You are a clinical assistant AI. Parse the following clinical input into structured fields:
+
     "{case_input.patient_description}"
 
-    Output JSON with keys: patient_name, national_id, age, address, email, phone_number, diagnoses,
+    Output in JSON with keys: patient_name, national_id, age, address, email, phone_number, diagnoses,
     signs, symptoms, allergies, past_medical_history, past_surgical_history, medications, nsp_notes, 
     summary, risk_level, research_potential, research_notes, court_related, team_members.
     """
 
     try:
-        gpt_response = openai.ChatCompletion.create(
+        gpt_response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a clinical case parser."},
                 {"role": "user", "content": gpt_prompt}
             ]
         )
-        structured_data = eval(gpt_response["choices"][0]["message"]["content"])
+        structured_data = eval(gpt_response.choices[0].message.content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"GPT parsing error: {str(e)}")
 
