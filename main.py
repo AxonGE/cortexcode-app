@@ -4,20 +4,18 @@ from typing import Optional
 from openai import OpenAI
 import requests
 import os
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Environment variables
+# Load environment variables
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-# FastAPI app
 app = FastAPI()
 
 class CaseInput(BaseModel):
@@ -26,13 +24,15 @@ class CaseInput(BaseModel):
 @app.post("/create-case")
 async def create_case(case_input: CaseInput):
     gpt_prompt = f"""
-    You are a clinical assistant AI. Parse the following clinical input into structured fields:
+    You are a clinical assistant AI. Parse the following clinical input into structured JSON.
 
-    "{case_input.patient_description}"
+    ONLY return the JSON body. Do NOT include markdown, explanations, or text outside of the JSON.
+    
+    Input: "{case_input.patient_description}"
 
-    Output in JSON with keys: patient_name, national_id, age, address, email, phone_number, diagnoses,
-    signs, symptoms, allergies, past_medical_history, past_surgical_history, medications, nsp_notes, 
-    summary, risk_level, research_potential, research_notes, court_related, team_members.
+    JSON fields: patient_name, national_id, age, address, email, phone_number, diagnoses,
+    signs, symptoms, allergies, past_medical_history, past_surgical_history, medications, 
+    nsp_notes, summary, risk_level, research_potential, research_notes, court_related, team_members.
     """
 
     try:
@@ -43,16 +43,18 @@ async def create_case(case_input: CaseInput):
                 {"role": "user", "content": gpt_prompt}
             ]
         )
-        structured_data = eval(gpt_response.choices[0].message.content)
+        raw_response = gpt_response.choices[0].message.content
+        structured_data = json.loads(raw_response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"GPT parsing error: {str(e)}")
+
+    structured_data["created_at"] = datetime.utcnow().isoformat()
 
     headers = {
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
         "Content-Type": "application/json"
     }
-    structured_data["created_at"] = datetime.utcnow().isoformat()
 
     try:
         response = requests.post(
