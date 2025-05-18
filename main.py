@@ -54,9 +54,15 @@ async def create_case(case_input: CaseInput):
         print("🧠 GPT RAW RESPONSE:")
         print(f"START>>> {raw_response} <<<END")
 
+        # Remove markdown JSON block if present
+        if raw_response.strip().startswith("```json"):
+            raw_response = raw_response.strip().removeprefix("```json").removesuffix("```").strip()
+        elif raw_response.strip().startswith("```"):
+            raw_response = raw_response.strip().removeprefix("```").removesuffix("```").strip()
+        
         if not raw_response or not raw_response.strip().startswith("{"):
-            raise HTTPException(status_code=500, detail=f"GPT returned invalid or empty JSON: START>>> {raw_response} <<<END")
-
+            raise HTTPException(status_code=500, detail=f"GPT returned invalid or malformed JSON: START>>> {raw_response} <<<END")
+        
         try:
             structured_data = json.loads(raw_response)
         except json.JSONDecodeError as e:
