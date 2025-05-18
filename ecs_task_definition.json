@@ -4,7 +4,7 @@
   "containerDefinitions": [
     {
       "name": "cortexcode",
-      "image": "<your-ecr-url>/cortexcode-app:latest",
+      "image": "${{ secrets.ECR_REPO_URL }}/cortexcode-app:latest"
       "essential": true,
       "portMappings": [
         {
