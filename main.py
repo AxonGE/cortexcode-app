@@ -28,7 +28,7 @@ class CaseUpdate(BaseModel):
 async def create_case(case_input: CaseInput):
     gpt_prompt = f"""
     You are a clinical assistant AI using the Neurosemiotic Psychiatry (NSP) model. 
-    Parse this freeform input into JSON with the following fields.
+    Parse this freeform input into JSON with the following fields:
 
     Required fields: 
     patient_name, national_id, age, address, email, phone_number, diagnoses, signs, symptoms, allergies, 
@@ -51,11 +51,18 @@ async def create_case(case_input: CaseInput):
             ]
         )
         raw_response = gpt_response.choices[0].message.content
-        structured_data = json.loads(raw_response)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"GPT parsing error: {str(e)}")
+        print("🧠 GPT RAW RESPONSE:")
+        print(raw_response)
 
-    structured_data["created_at"] = datetime.utcnow().isoformat()
+        try:
+            structured_data = json.loads(raw_response)
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=500, detail=f"GPT parsing error: {str(e)} | Raw: {raw_response}")
+
+        structured_data["created_at"] = datetime.utcnow().isoformat()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"GPT response failure: {str(e)}")
 
     headers = {
         "apikey": SUPABASE_KEY,
