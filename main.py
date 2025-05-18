@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from openai import OpenAI
 import requests
 import os
@@ -55,8 +55,6 @@ async def create_case(case_input: CaseInput):
             ]
         )
         raw_response = gpt_response.choices[0].message.content
-        print("🧠 GPT RAW RESPONSE:")
-        print(f"START>>> {raw_response} <<<END")
 
         if raw_response.strip().startswith("```json"):
             raw_response = raw_response.strip().removeprefix("```json").removesuffix("```").strip()
@@ -66,18 +64,11 @@ async def create_case(case_input: CaseInput):
         if not raw_response or not raw_response.strip().startswith("{"):
             raise HTTPException(status_code=500, detail=f"GPT returned invalid or malformed JSON: START>>> {raw_response} <<<END")
 
-        try:
-            structured_data = json.loads(raw_response)
-        except json.JSONDecodeError as e:
-            raise HTTPException(status_code=500, detail=f"GPT parsing error: {str(e)} | Raw: {raw_response}")
-
+        structured_data = json.loads(raw_response)
         structured_data["created_at"] = datetime.utcnow().isoformat()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"GPT response failure: {str(e)}")
-
-    print("📤 Final structured data to Supabase:")
-    print(json.dumps(structured_data, indent=2))
 
     headers = {
         "apikey": SUPABASE_KEY,
@@ -104,10 +95,7 @@ def get_cases():
         "Authorization": f"Bearer {SUPABASE_KEY}"
     }
     try:
-        response = requests.get(
-            f"{SUPABASE_URL}/rest/v1/cases?select=*",
-            headers=headers
-        )
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/cases?select=*", headers=headers)
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -120,10 +108,7 @@ def get_case_by_id(case_id: str):
         "Authorization": f"Bearer {SUPABASE_KEY}"
     }
     try:
-        response = requests.get(
-            f"{SUPABASE_URL}/rest/v1/cases?pk=eq.{case_id}&select=*",
-            headers=headers
-        )
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/cases?pk=eq.{case_id}&select=*", headers=headers)
         response.raise_for_status()
         data = response.json()
         if not data:
@@ -154,6 +139,33 @@ def review_case(case_id: str):
         return {"nsps_interpretation": review_response.choices[0].message.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Review GPT error: {str(e)}")
+
+@app.get("/review-latest")
+def review_latest_case():
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}"
+    }
+    try:
+        response = requests.get(f"{SUPABASE_URL}/rest/v1/cases?select=*&order=created_at.desc&limit=1", headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        if not data:
+            raise HTTPException(status_code=404, detail="No cases found")
+        case = data[0]
+        return review_case(case["pk"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reviewing latest case: {str(e)}")
+
+@app.get("/search-cases")
+def search_cases(q: str = Query(..., description="Keyword to search (e.g., ADHD, fluoxetine)")):
+    all_cases = get_cases()
+    results = []
+    for case in all_cases:
+        combined_text = json.dumps(case).lower()
+        if q.lower() in combined_text:
+            results.append(case)
+    return results
 
 @app.patch("/update-case")
 def update_case(update: CaseUpdate):
