@@ -52,7 +52,10 @@ async def create_case(case_input: CaseInput):
         )
         raw_response = gpt_response.choices[0].message.content
         print("🧠 GPT RAW RESPONSE:")
-        print(raw_response)
+        print(f"START>>> {raw_response} <<<END")
+
+        if not raw_response or not raw_response.strip().startswith("{"):
+            raise HTTPException(status_code=500, detail=f"GPT returned invalid or empty JSON: START>>> {raw_response} <<<END")
 
         try:
             structured_data = json.loads(raw_response)
