@@ -59,10 +59,10 @@ async def create_case(case_input: CaseInput):
             raw_response = raw_response.strip().removeprefix("```json").removesuffix("```").strip()
         elif raw_response.strip().startswith("```"):
             raw_response = raw_response.strip().removeprefix("```").removesuffix("```").strip()
-        
+
         if not raw_response or not raw_response.strip().startswith("{"):
             raise HTTPException(status_code=500, detail=f"GPT returned invalid or malformed JSON: START>>> {raw_response} <<<END")
-        
+
         try:
             structured_data = json.loads(raw_response)
         except json.JSONDecodeError as e:
@@ -72,6 +72,9 @@ async def create_case(case_input: CaseInput):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"GPT response failure: {str(e)}")
+
+    print("📤 Final structured data to Supabase:")
+    print(json.dumps(structured_data, indent=2))
 
     headers = {
         "apikey": SUPABASE_KEY,
