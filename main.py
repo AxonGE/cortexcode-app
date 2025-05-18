@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("${{ secrets.SUPABASE_URL }}")
-SUPABASE_KEY = os.getenv("${{ secrets.SUPABASE_KEY }}")
-OPENAI_API_KEY = os.getenv("${{ secrets.OPENAI_API_KEY }}")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 app = FastAPI()
